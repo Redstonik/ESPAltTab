@@ -18,13 +18,26 @@ unsigned long lastsent = 0;
 unsigned long lastalert = 0;
 
 
+void blinkStatus(uint8_t n) {
+  for (uint8_t i = 0; i < n; i++)
+  {
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(100);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(100);
+  }
+  
+}
+
 void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(PIN_TRIG, OUTPUT);
   pinMode(PIN_ECHO, INPUT);
   WiFi.begin(WLAN_SSID, WLAN_KEY);
   while (WiFi.status() != WL_CONNECTED)
   {
-    delay(500);
+    blinkStatus(1);
+    delay(1000);
   }
   Udp.begin(locaport);
 }
