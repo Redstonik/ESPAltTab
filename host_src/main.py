@@ -2,6 +2,7 @@ import socket
 from pynput.keyboard import Key, Controller
 import time
 
+dev_port = 9001
 
 keyboard = Controller()
 def supCtrlRight():
@@ -18,20 +19,33 @@ def altTab():
         keyboard.release(Key.tab)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 sock.settimeout(2.5)
-sock.bind(("",4202))
 
-print("Waiting for first packet", end="")
+print("Searching for devices:")
+sock.sendto("S".encode(), ('<broadcast>', dev_port))
+devices = []
+while True:
+    try:
+        data, addr = sock.recvfrom(64)
+        devices.append((data.decode(), addr))
+        print(len(devices),devices[-1])
+    except socket.timeout:
+        break
+
+dev = devices[int(input("Select device:")) - 1]
+print("Connecting to {}".format(dev[0]), end="")
+sock.sendto("C".encode(), dev[1])
 while True:
     try:
         data, addr = sock.recvfrom(8)
+        print(" Connected!")
+        last = time.monotonic()
         break
     except socket.timeout:
-        print(".",end="")
+        print(".", end="")
 
 
-print("\nPacket from: {}".format(addr))
-last = time.monotonic()
 while True:
     try:
         data, addr = sock.recvfrom(8)

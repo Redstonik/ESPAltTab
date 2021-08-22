@@ -16,15 +16,18 @@ int timesbelow = 0;
 int maxdist = 40;
 unsigned long lastsent = 0;
 unsigned long lastalert = 0;
+char incomingPacket[8];
 
+IPAddress targ;
+uint16_t targport;
 
-void blinkStatus(uint8_t n) {
+void blinkStatus(uint8_t n, uint16_t dur = 100, uint16_t off = 400) {
   for (uint8_t i = 0; i < n; i++)
   {
     digitalWrite(LED_BUILTIN, LOW);
-    delay(100);
+    delay(dur);
     digitalWrite(LED_BUILTIN, HIGH);
-    delay(100);
+    delay(off);
   }
   
 }
@@ -36,11 +39,31 @@ void setup() {
   WiFi.begin(WLAN_SSID, WLAN_KEY);
   while (WiFi.status() != WL_CONNECTED)
   {
-    blinkStatus(1);
-    delay(1000);
+    blinkStatus(1, 100, 900);
   }
+  blinkStatus(1, 500);
   Udp.begin(locaport);
+  int packetSize = 0;
+  while (true) {
+    blinkStatus(1, 100, 900);
+    packetSize = Udp.parsePacket();
+    if (packetSize) {
+      Udp.read(incomingPacket, 8);
+      if(incomingPacket[0] == 'S') {
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write(DEV_NAME);
+        Udp.endPacket();
+      } else if (incomingPacket[0] == 'C') {
+        targ = Udp.remoteIP();
+        targport = Udp.remotePort();
+        break;
+      }
+    }
+  }
+  blinkStatus(1, 500);
 }
+
+
 void loop() {
   digitalWrite(PIN_TRIG, LOW);
   delayMicroseconds(2);
