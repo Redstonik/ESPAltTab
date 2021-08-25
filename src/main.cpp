@@ -4,6 +4,14 @@
 
 #include "config.h"
 
+#define MAX_CLIENTS 16
+
+struct M_Client
+{
+  IPAddress ip;
+  uint16_t port;
+};
+
 
 
 int locaport = 9001;
@@ -18,8 +26,8 @@ unsigned long lastsent = 0;
 unsigned long lastalert = 0;
 char incomingPacket[8];
 
-IPAddress targ;
-uint16_t targport;
+M_Client clients[MAX_CLIENTS];
+uint8_t n_clients = 0;
 
 void blinkStatus(uint8_t n, uint16_t dur = 100, uint16_t off = 400) {
   for (uint8_t i = 0; i < n; i++)
@@ -43,29 +51,6 @@ void setup() {
   }
   blinkStatus(1, 500);
   Udp.begin(locaport);
-  int packetSize = 0;
-  while (true)
-  {
-    blinkStatus(1, 100, 900);
-    packetSize = Udp.parsePacket();
-    if (packetSize)
-    {
-      Udp.read(incomingPacket, 8);
-      if(incomingPacket[0] == 'S')
-      {
-        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-        Udp.write(DEV_NAME);
-        Udp.endPacket();
-      }
-      else if (incomingPacket[0] == 'C')
-      {
-        targ = Udp.remoteIP();
-        targport = Udp.remotePort();
-        break;
-      }
-    }
-  }
-  blinkStatus(1, 500);
 }
 
 
@@ -78,19 +63,42 @@ void loop()
   digitalWrite(PIN_TRIG, LOW);
   duration = pulseIn(PIN_ECHO, HIGH);
   distance = duration * 0.034 / 2;
+
+  int packetSize = 0;
+  packetSize = Udp.parsePacket();
+  if (packetSize)
+  {
+    Udp.read(incomingPacket, 8);
+    if(incomingPacket[0] == 'S' && n_clients < MAX_CLIENTS)
+    {
+      Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+      Udp.write(DEV_NAME);
+      Udp.endPacket();
+    }
+    else if (incomingPacket[0] == 'C' && n_clients < MAX_CLIENTS)
+    {
+      clients[n_clients].ip = Udp.remoteIP();
+      clients[n_clients].port = Udp.remotePort();
+      n_clients++;
+    }
+  }
+
   if(distance < maxdist)
   {
     timesbelow++;
     if(timesbelow > 3 && millis() - 1000 > lastalert)
     {
-      for(int i = 0; i < 3; i++)
-      {
-        Udp.beginPacket(targ, targport);
-        Udp.write(1);
-        Udp.endPacket();
-      }
       lastsent = millis();
       lastalert = millis();
+      for(int i = 0; i < 3; i++)
+      {
+        for (int j = 0; j < n_clients; j++)
+        {
+          Udp.beginPacket(clients[j].ip, clients[j].port);
+          Udp.write(1);
+          Udp.endPacket();
+        }
+      }
       timesbelow = 0;
     }
   }
@@ -100,10 +108,13 @@ void loop()
   }
   if(millis() - 2000 > lastsent)
   {
-    Udp.beginPacket(targ, targport);
-    Udp.write(0);
-    Udp.endPacket();
     lastsent = millis();
+    for (int j = 0; j < n_clients; j++)
+      {
+        Udp.beginPacket(clients[j].ip, clients[j].port);
+        Udp.write(0);
+        Udp.endPacket();
+      }
   }
   delay(10);
 }
