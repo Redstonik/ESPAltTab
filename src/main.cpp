@@ -44,16 +44,21 @@ void setup() {
   blinkStatus(1, 500);
   Udp.begin(locaport);
   int packetSize = 0;
-  while (true) {
+  while (true)
+  {
     blinkStatus(1, 100, 900);
     packetSize = Udp.parsePacket();
-    if (packetSize) {
+    if (packetSize)
+    {
       Udp.read(incomingPacket, 8);
-      if(incomingPacket[0] == 'S') {
+      if(incomingPacket[0] == 'S')
+      {
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
         Udp.write(DEV_NAME);
         Udp.endPacket();
-      } else if (incomingPacket[0] == 'C') {
+      }
+      else if (incomingPacket[0] == 'C')
+      {
         targ = Udp.remoteIP();
         targport = Udp.remotePort();
         break;
@@ -64,7 +69,8 @@ void setup() {
 }
 
 
-void loop() {
+void loop()
+{
   digitalWrite(PIN_TRIG, LOW);
   delayMicroseconds(2);
   digitalWrite(PIN_TRIG, HIGH);
@@ -72,10 +78,13 @@ void loop() {
   digitalWrite(PIN_TRIG, LOW);
   duration = pulseIn(PIN_ECHO, HIGH);
   distance = duration * 0.034 / 2;
-  if(distance < maxdist) {
+  if(distance < maxdist)
+  {
     timesbelow++;
-    if(timesbelow > 3 && millis() - 1000 > lastalert) {
-      for(int i = 0; i < 3; i++) {
+    if(timesbelow > 3 && millis() - 1000 > lastalert)
+    {
+      for(int i = 0; i < 3; i++)
+      {
         Udp.beginPacket(targ, targport);
         Udp.write(1);
         Udp.endPacket();
@@ -84,10 +93,13 @@ void loop() {
       lastalert = millis();
       timesbelow = 0;
     }
-  } else {
+  }
+  else
+  {
     timesbelow = 0;
   }
-  if(millis() - 2000 > lastsent) {
+  if(millis() - 2000 > lastsent)
+  {
     Udp.beginPacket(targ, targport);
     Udp.write(0);
     Udp.endPacket();
