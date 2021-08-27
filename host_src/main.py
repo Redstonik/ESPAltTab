@@ -1,3 +1,4 @@
+import sys
 import socket
 from pynput.keyboard import Key, Controller
 import time
@@ -36,16 +37,21 @@ while True:
 dev = devices[int(input("Select device:")) - 1]
 print("Connecting to {}".format(dev[0]), end="")
 sock.sendto("C".encode(), dev[1])
+
 while True:
     try:
         data, addr = sock.recvfrom(8)
-        print(" Connected!")
-        last = time.monotonic()
+        if data == b"K":
+            print(" Connected!")
+            last = time.monotonic()
+        elif data == b"F":
+            print(" Failed: device max connections reached")
+            sys.exit()
         break
     except socket.timeout:
         print(".", end="")
 
-
+print("Press Ctrl+C to exit")
 while True:
     try:
         data, addr = sock.recvfrom(8)
@@ -56,4 +62,14 @@ while True:
     except socket.timeout:
         altTab()
         print("Lost connection")
+        break
+    except KeyboardInterrupt:
+        print("Closing connection...")
+        try:
+            sock.sendto("D".encode(), dev[1])
+            data, addr = sock.recvfrom(8)
+            if data == b"B":
+                print("Disconnected")
+        except socket.timeout:
+            print("Disconnect confirmation not recived")
         break

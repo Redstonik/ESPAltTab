@@ -69,17 +69,48 @@ void loop()
   if (packetSize)
   {
     Udp.read(incomingPacket, 8);
-    if(incomingPacket[0] == 'S' && n_clients < MAX_CLIENTS)
+    switch(incomingPacket[0])
     {
-      Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-      Udp.write(DEV_NAME);
-      Udp.endPacket();
-    }
-    else if (incomingPacket[0] == 'C' && n_clients < MAX_CLIENTS)
-    {
-      clients[n_clients].ip = Udp.remoteIP();
-      clients[n_clients].port = Udp.remotePort();
-      n_clients++;
+      case 'S':
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write(DEV_NAME);
+        Udp.endPacket();
+        break;
+      case 'C':
+        if(n_clients < MAX_CLIENTS)
+        {
+          clients[n_clients].ip = Udp.remoteIP();
+          clients[n_clients].port = Udp.remotePort();
+          n_clients++;
+          Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+          Udp.write('K');
+          Udp.endPacket();
+        } 
+        else
+        {
+          Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+          Udp.write('F');
+          Udp.endPacket();
+        }
+        break;
+      case 'D':
+        for (int i = 0; i < MAX_CLIENTS; i++)
+        {
+          if(clients[i].ip == Udp.remoteIP() && clients[i].port == Udp.remotePort())
+          {
+            for (; i < MAX_CLIENTS - 1; i++)
+            {
+              clients[i] = clients[i+1];
+            }
+            n_clients--;
+            Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+            Udp.write('B');
+            Udp.endPacket();
+            break;
+          }
+        }
+        
+        break;
     }
   }
 
