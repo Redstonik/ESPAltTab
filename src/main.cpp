@@ -10,6 +10,7 @@ struct M_Client
 {
   IPAddress ip;
   uint16_t port;
+  unsigned long lastP;
 };
 
 
@@ -22,7 +23,6 @@ long duration;
 int distance;
 int timesbelow = 0;
 int maxdist = 40;
-unsigned long lastsent = 0;
 unsigned long lastalert = 0;
 char incomingPacket[8];
 
@@ -85,6 +85,7 @@ void loop()
           Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
           Udp.write('K');
           Udp.endPacket();
+          clients[n_clients].lastP = millis();
         } 
         else
         {
@@ -119,7 +120,6 @@ void loop()
     timesbelow++;
     if(timesbelow > 3 && millis() - 1000 > lastalert)
     {
-      lastsent = millis();
       lastalert = millis();
       for(int i = 0; i < 3; i++)
       {
@@ -128,6 +128,7 @@ void loop()
           Udp.beginPacket(clients[j].ip, clients[j].port);
           Udp.write(1);
           Udp.endPacket();
+          clients[j].lastP = millis();
         }
       }
       timesbelow = 0;
@@ -137,15 +138,16 @@ void loop()
   {
     timesbelow = 0;
   }
-  if(millis() - 2000 > lastsent)
+  unsigned long threshold = millis() - 2000;
+  for (int j = 0; j < n_clients; j++)
   {
-    lastsent = millis();
-    for (int j = 0; j < n_clients; j++)
-      {
-        Udp.beginPacket(clients[j].ip, clients[j].port);
-        Udp.write(0);
-        Udp.endPacket();
-      }
+    if (clients[j].lastP < threshold)
+    {
+      Udp.beginPacket(clients[j].ip, clients[j].port);
+      Udp.write(0);
+      Udp.endPacket();
+      clients[j].lastP = millis();
+    } 
   }
   delay(10);
 }
