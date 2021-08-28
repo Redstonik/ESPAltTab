@@ -34,9 +34,16 @@ while True:
     except socket.timeout:
         break
 
-dev = devices[int(input("Select device:")) - 1]
+dev = input("Select device:")
 print("Connecting to {}".format(dev[0]), end="")
-sock.sendto("C".encode(), dev[1])
+if dev[0] == "r":
+    dev = devices[int(dev[1:]) - 1]
+    sock.sendto("CR".encode(), dev[1])
+    afunc = lambda *args: None
+else:
+    dev = devices[int(dev) - 1]
+    sock.sendto("CA".encode(), dev[1])
+    afunc = altTab
 
 while True:
     try:
@@ -57,10 +64,12 @@ while True:
         data, addr = sock.recvfrom(8)
         if data == b"\01":
             if(time.monotonic() - 1 > last):
-                altTab()
+                afunc()
                 last = time.monotonic()
+        elif data[0] == ord("R"):
+            print(int.from_bytes(data[1:], 'little'))
     except socket.timeout:
-        altTab()
+        afunc()
         print("Lost connection")
         break
     except KeyboardInterrupt:

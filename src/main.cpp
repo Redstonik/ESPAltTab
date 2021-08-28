@@ -6,11 +6,17 @@
 
 #define MAX_CLIENTS 16
 
+enum sub_type : uint8_t
+{
+  Alert, Raw
+};
+
 struct M_Client
 {
   IPAddress ip;
   uint16_t port;
   unsigned long lastP;
+  sub_type sType;
 };
 
 
@@ -81,11 +87,20 @@ void loop()
         {
           clients[n_clients].ip = Udp.remoteIP();
           clients[n_clients].port = Udp.remotePort();
-          n_clients++;
           Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
           Udp.write('K');
           Udp.endPacket();
           clients[n_clients].lastP = millis();
+          switch (incomingPacket[1])
+          {
+          case 'R':
+            clients[n_clients].sType = Raw;
+            break;
+          case 'A':
+            clients[n_clients].sType = Alert;
+            break;
+          }
+          n_clients++;
         } 
         else
         {
@@ -115,23 +130,14 @@ void loop()
     }
   }
 
+  bool alert = false;
   if(distance < maxdist)
   {
     timesbelow++;
     if(timesbelow > 3 && millis() - 1000 > lastalert)
     {
+      alert = true;
       lastalert = millis();
-      for(int i = 0; i < 3; i++)
-      {
-        for (int j = 0; j < n_clients; j++)
-        {
-          Udp.beginPacket(clients[j].ip, clients[j].port);
-          Udp.write(1);
-          Udp.endPacket();
-          clients[j].lastP = millis();
-        }
-      }
-      timesbelow = 0;
     }
   }
   else
@@ -139,15 +145,44 @@ void loop()
     timesbelow = 0;
   }
   unsigned long threshold = millis() - 2000;
-  for (int j = 0; j < n_clients; j++)
+  unsigned long rawThreshold = millis() - 100;
+  for (int i = 0; i < n_clients; i++)
   {
-    if (clients[j].lastP < threshold)
+    switch (clients[i].sType)
     {
-      Udp.beginPacket(clients[j].ip, clients[j].port);
-      Udp.write(0);
-      Udp.endPacket();
-      clients[j].lastP = millis();
-    } 
+      case Alert:
+        if (alert)
+        {
+          for (int j = 0; j < 3; j++)
+          {
+            Udp.beginPacket(clients[i].ip, clients[i].port);
+            Udp.write(1);
+            Udp.endPacket();
+          }
+          clients[i].lastP = millis();
+        }
+        else if (clients[i].lastP < threshold)
+        {
+          Udp.beginPacket(clients[i].ip, clients[i].port);
+          Udp.write(0);
+          Udp.endPacket();
+          clients[i].lastP = millis();
+        }
+        break;
+      
+      case Raw:
+        if (clients[i].lastP < rawThreshold)
+        {
+          Udp.beginPacket(clients[i].ip, clients[i].port);
+          Udp.write('R');
+          Udp.write(distance);
+          Udp.endPacket();
+          clients[i].lastP = millis();
+        }
+        
+      default:
+        break;
+    }
   }
   delay(10);
 }
