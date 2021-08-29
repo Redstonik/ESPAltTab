@@ -19,6 +19,19 @@ def altTab():
         keyboard.press(Key.tab)
         keyboard.release(Key.tab)
 
+def waitForConn(soc):
+    while True:
+        try:
+            data, addr = soc.recvfrom(8)
+            if data == b"K":
+                print(" Connected!")
+            elif data == b"F":
+                print(" Failed: device max connections reached")
+                sys.exit()
+            break
+        except socket.timeout:
+            print(".", end="")
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 sock.settimeout(2.5)
@@ -34,31 +47,29 @@ while True:
     except socket.timeout:
         break
 
-dev = input("Select device:")
+sel = input("Select device:").split(" ")
+dev = devices[int(sel[0]) - 1]
 print("Connecting to {}".format(dev[0]), end="")
-if dev[0] == "r":
-    dev = devices[int(dev[1:]) - 1]
-    sock.sendto("CR".encode(), dev[1])
-    afunc = lambda *args: None
-else:
-    dev = devices[int(dev) - 1]
+if len(sel) == 1:
     sock.sendto("CA".encode(), dev[1])
+    waitForConn(sock)
     afunc = altTab
-
-while True:
-    try:
+elif len(sel) == 2:
+    if sel[1] != "r":
+        sock.sendto("CA".encode(), dev[1])
+        waitForConn(sock)
+        afunc = altTab
+        sock.sendto("M".encode()+bytes([int(sel[1])]), dev[1])
         data, addr = sock.recvfrom(8)
-        if data == b"K":
-            print(" Connected!")
-            last = time.monotonic()
-        elif data == b"F":
-            print(" Failed: device max connections reached")
-            sys.exit()
-        break
-    except socket.timeout:
-        print(".", end="")
+        if data[0] == ord('K'):
+            print("Successfully set trigger distance")
+    else:
+        sock.sendto("CR".encode(), dev[1])
+        afunc = lambda *args: None
+        waitForConn(sock)
 
 print("Press Ctrl+C to exit")
+last = time.monotonic()
 while True:
     try:
         data, addr = sock.recvfrom(8)

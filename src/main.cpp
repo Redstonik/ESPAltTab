@@ -125,7 +125,12 @@ void loop()
             break;
           }
         }
-        
+        break;
+      case 'M':
+        maxdist = incomingPacket[1];
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write('K');
+        Udp.endPacket();
         break;
     }
   }
